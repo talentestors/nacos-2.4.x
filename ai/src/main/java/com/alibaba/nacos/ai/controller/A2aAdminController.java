@@ -21,7 +21,8 @@ import com.alibaba.nacos.ai.form.a2a.admin.AgentCardForm;
 import com.alibaba.nacos.ai.form.a2a.admin.AgentCardUpdateForm;
 import com.alibaba.nacos.ai.form.a2a.admin.AgentForm;
 import com.alibaba.nacos.ai.form.a2a.admin.AgentListForm;
-import com.alibaba.nacos.ai.service.A2aServerOperationService;
+import com.alibaba.nacos.ai.param.AgentHttpParamExtractor;
+import com.alibaba.nacos.ai.service.a2a.A2aServerOperationService;
 import com.alibaba.nacos.ai.utils.AgentRequestUtil;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCard;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCardDetailInfo;
@@ -34,6 +35,7 @@ import com.alibaba.nacos.api.model.Page;
 import com.alibaba.nacos.api.model.v2.Result;
 import com.alibaba.nacos.auth.annotation.Secured;
 import com.alibaba.nacos.core.model.form.PageForm;
+import com.alibaba.nacos.core.paramcheck.ExtractorManager;
 import com.alibaba.nacos.plugin.auth.constant.ActionTypes;
 import com.alibaba.nacos.plugin.auth.constant.ApiType;
 import com.alibaba.nacos.plugin.auth.constant.SignType;
@@ -54,6 +56,7 @@ import java.util.List;
 @NacosApi
 @RestController
 @RequestMapping(Constants.A2A.ADMIN_PATH)
+@ExtractorManager.Extractor(httpExtractor = AgentHttpParamExtractor.class)
 public class A2aAdminController {
     
     private final A2aServerOperationService a2aServerOperationService;
@@ -90,7 +93,8 @@ public class A2aAdminController {
     public Result<AgentCardDetailInfo> getAgentCard(AgentForm form) throws NacosApiException {
         form.validate();
         return Result.success(
-                a2aServerOperationService.getAgentCard(form.getNamespaceId(), form.getName(), form.getVersion()));
+                a2aServerOperationService.getAgentCard(form.getNamespaceId(), form.getAgentName(), form.getVersion(),
+                        form.getRegistrationType()));
     }
     
     /**
@@ -121,7 +125,7 @@ public class A2aAdminController {
     @Secured(action = ActionTypes.WRITE, signType = SignType.AI, apiType = ApiType.ADMIN_API)
     public Result<String> deleteAgent(AgentForm form) throws NacosException {
         form.validate();
-        a2aServerOperationService.deleteAgent(form.getNamespaceId(), form.getName(), form.getVersion());
+        a2aServerOperationService.deleteAgent(form.getNamespaceId(), form.getAgentName(), form.getVersion());
         return Result.success("ok");
     }
     
@@ -140,7 +144,7 @@ public class A2aAdminController {
         agentListForm.validate();
         pageForm.validate();
         return Result.success(
-                a2aServerOperationService.listAgents(agentListForm.getNamespaceId(), agentListForm.getName(),
+                a2aServerOperationService.listAgents(agentListForm.getNamespaceId(), agentListForm.getAgentName(),
                         agentListForm.getSearch(), pageForm.getPageNo(), pageForm.getPageSize()));
     }
     
@@ -156,6 +160,6 @@ public class A2aAdminController {
     public Result<List<AgentVersionDetail>> listAgentVersions(AgentForm agentForm) throws NacosException {
         agentForm.validate();
         return Result.success(
-                a2aServerOperationService.listAgentVersions(agentForm.getNamespaceId(), agentForm.getName()));
+                a2aServerOperationService.listAgentVersions(agentForm.getNamespaceId(), agentForm.getAgentName()));
     }
 }

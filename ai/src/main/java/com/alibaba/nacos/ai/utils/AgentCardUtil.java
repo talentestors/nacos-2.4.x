@@ -17,11 +17,13 @@
 package com.alibaba.nacos.ai.utils;
 
 import com.alibaba.nacos.ai.constant.Constants;
-import com.alibaba.nacos.ai.form.a2a.admin.AgentDetailForm;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCard;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCardDetailInfo;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCardVersionInfo;
+import com.alibaba.nacos.api.ai.model.a2a.AgentInterface;
 import com.alibaba.nacos.api.ai.model.a2a.AgentVersionDetail;
+import com.alibaba.nacos.api.naming.pojo.Instance;
+import com.alibaba.nacos.common.utils.StringUtils;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -35,30 +37,7 @@ import java.util.Collections;
  */
 public class AgentCardUtil {
     
-    /**
-     * Build Agent Card from Agent Detail form.
-     *
-     * @param form agent detail form
-     * @return Agent Card
-     */
-    public static AgentCard buildAgentCard(AgentDetailForm form) {
-        AgentCard agentCard = new AgentCard();
-        injectAgentCardInfo(agentCard, form);
-        return agentCard;
-    }
-    
-    /**
-     * Build Agent Card Storage Info from Agent Detail form.
-     *
-     * @param form agent detail form
-     * @return Agent Card Storage Info
-     */
-    public static AgentCardDetailInfo buildAgentCardDetailInfo(AgentDetailForm form) {
-        AgentCardDetailInfo agentCardDetailInfo = new AgentCardDetailInfo();
-        injectAgentCardInfo(agentCardDetailInfo, form);
-        agentCardDetailInfo.setRegistrationType(form.getRegistrationType());
-        return agentCardDetailInfo;
-    }
+    private static final String AGENT_INTERFACE_URL_PATTERN = "%s://%s:%s";
     
     /**
      * Build Agent Card Storage Info from Agent Detail form.
@@ -71,24 +50,6 @@ public class AgentCardUtil {
         copyAgentCardInfo(agentCardDetailInfo, agentCard);
         agentCardDetailInfo.setRegistrationType(registrationType);
         return agentCardDetailInfo;
-    }
-    
-    /**
-     * Build Agent Card Storage Info from Agent Detail form.
-     *
-     * @param form agent detail form
-     * @param isLatest is latest version
-     * @return Agent Card Version Info
-     */
-    public static AgentCardVersionInfo buildAgentCardVersionInfo(AgentDetailForm form, boolean isLatest) {
-        AgentCardVersionInfo agentCardVersionInfo = new AgentCardVersionInfo();
-        injectAgentCardInfo(agentCardVersionInfo, form);
-        agentCardVersionInfo.setRegistrationType(form.getRegistrationType());
-        if (isLatest) {
-            agentCardVersionInfo.setLatestPublishedVersion(form.getVersion());
-        }
-        agentCardVersionInfo.setVersionDetails(Collections.singletonList(buildAgentVersionDetail(form, isLatest)));
-        return agentCardVersionInfo;
     }
     
     /**
@@ -109,21 +70,6 @@ public class AgentCardUtil {
         }
         agentCardVersionInfo.setVersionDetails(Collections.singletonList(buildAgentVersionDetail(agentCard, isLatest)));
         return agentCardVersionInfo;
-    }
-    
-    /**
-     * Build Agent version detail from Agent Detail form.
-     *
-     * @param form agent detail form
-     * @return Agent Version Detail
-     */
-    public static AgentVersionDetail buildAgentVersionDetail(AgentDetailForm form, boolean isLatest) {
-        AgentVersionDetail agentVersionDetail = new AgentVersionDetail();
-        agentVersionDetail.setCreatedAt(getCurrentTime());
-        agentVersionDetail.setUpdatedAt(getCurrentTime());
-        agentVersionDetail.setVersion(form.getVersion());
-        agentVersionDetail.setLatest(isLatest);
-        return agentVersionDetail;
     }
     
     /**
@@ -150,30 +96,31 @@ public class AgentCardUtil {
         versionDetail.setUpdatedAt(getCurrentTime());
     }
     
+    /**
+     * Build {@link AgentInterface} from service {@link Instance}.
+     *
+     * @param instance service instance.
+     * @return agent interface (endpoint)
+     */
+    public static AgentInterface buildAgentInterface(Instance instance) {
+        AgentInterface agentInterface = new AgentInterface();
+        boolean isSupportTls = Boolean.parseBoolean(
+                instance.getMetadata().get(Constants.A2A.NACOS_AGENT_ENDPOINT_SUPPORT_TLS));
+        String protocol = isSupportTls ? Constants.PROTOCOL_TYPE_HTTPS : Constants.PROTOCOL_TYPE_HTTP;
+        String url = String.format(AGENT_INTERFACE_URL_PATTERN, protocol, instance.getIp(), instance.getPort());
+        String path = instance.getMetadata().get(Constants.A2A.AGENT_ENDPOINT_PATH_KEY);
+        if (StringUtils.isNotBlank(path)) {
+            url += path.startsWith("/") ? path : "/" + path;
+        }
+        agentInterface.setUrl(url);
+        agentInterface.setTransport(instance.getMetadata().get(Constants.A2A.AGENT_ENDPOINT_TRANSPORT_KEY));
+        return agentInterface;
+    }
+    
     private static String getCurrentTime() {
         ZonedDateTime currentTime = ZonedDateTime.now(ZoneOffset.UTC);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern(Constants.RELEASE_DATE_FORMAT);
         return currentTime.format(formatter);
-    }
-    
-    private static void injectAgentCardInfo(AgentCard agentCard, AgentDetailForm form) {
-        agentCard.setProtocolVersion(form.getProtocolVersion());
-        agentCard.setName(form.getName());
-        agentCard.setDescription(form.getDescription());
-        agentCard.setUrl(form.getUrl());
-        agentCard.setVersion(form.getVersion());
-        agentCard.setPreferredTransport(form.getPreferredTransport());
-        agentCard.setAdditionalInterfaces(form.getAdditionalInterfaces());
-        agentCard.setIconUrl(form.getIconUrl());
-        agentCard.setProvider(form.getProvider());
-        agentCard.setCapabilities(form.getCapabilities());
-        agentCard.setSecuritySchemes(form.getSecuritySchemes());
-        agentCard.setSecurity(form.getSecurity());
-        agentCard.setDefaultInputModes(form.getDefaultInputModes());
-        agentCard.setDefaultOutputModes(form.getDefaultOutputModes());
-        agentCard.setSkills(form.getSkills());
-        agentCard.setSupportsAuthenticatedExtendedCard(form.getSupportsAuthenticatedExtendedCard());
-        agentCard.setDocumentationUrl(form.getDocumentationUrl());
     }
     
     private static void copyAgentCardInfo(AgentCard target, AgentCard source) {
